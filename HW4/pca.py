@@ -67,14 +67,15 @@ def calculate_pca_similarity(classifier_data):
             pca_i.fit(classifier_data[j])
             transformed_i = pca_i.transform(classifier_data[i])
             inversed_i = pca_i.inverse_transform(transformed_i)
+            e_ij = np.mean(np.sum((inversed_i - classifier_data[i])**2, axis=1))
 
             pca_j = PCA(n_components=20)
             pca_j.fit(classifier_data[i])
             transformed_j = pca_j.transform(classifier_data[j])
             inversed_j = pca_j.inverse_transform(transformed_j)
-            D[i, j] = np.mean(np.sum((inversed_j - classifier_data[j])**2, axis=1))
+            e_ji = np.mean(np.sum((inversed_j - classifier_data[j])**2, axis=1))
 
-            E_ij = (inversed_i + inversed_j)/2
+            D[i, j] = (e_ij + e_ji) / 2
     return D
 
 # Data: [10000, 3072] 1024R 1024G 1024B
@@ -128,10 +129,11 @@ np.savetxt('partb_distances.csv', distance_matrix, delimiter=',')
 pca_euclidean = calculate_pca_euclidean(distance_matrix)
 
 plt.scatter(pca_euclidean[:, 0], pca_euclidean[:, 1])
-for label, x, y in zip(labeled_names, pca_euclidean[:, 0], pca_euclidean[:, 1]):
-    plt.annotate(label, (x, y))
+for i in range(10):
+    # https://stackoverflow.com/questions/14432557/matplotlib-scatter-plot-with-different-text-at-each-data-point
+    plt.annotate(labeled_names[i], (pca_euclidean[i, 0], pca_euclidean[i, 1]))
 plt.title("PCA Euclidean")
-plt.savefig("pca_mds_b.png")
+plt.savefig("pca_euclidean.png")
 plt.clf()
 
 
@@ -139,8 +141,9 @@ pca_similarity = calculate_pca_similarity(classifier_data)
 
 np.savetxt("partc_distances.csv", pca_similarity, delimiter=',')
 plt.scatter(pca_similarity[:, 0], pca_similarity[:, 1])
-for label, x, y in zip(labeled_names, pca_similarity[:, 0], pca_similarity[:, 1]):
-    plt.annotate(label, (x, y))
+for i in range(10):
+    # https://stackoverflow.com/questions/14432557/matplotlib-scatter-plot-with-different-text-at-each-data-point
+    plt.annotate(labeled_names[i], (pca_similarity[i, 0], pca_similarity[i, 1]))
 plt.title("PCA Similarity")
-plt.savefig("pca_mds_c.png")
+plt.savefig("pca_similarity.png")
 plt.clf()
