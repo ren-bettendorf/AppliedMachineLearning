@@ -66,7 +66,7 @@ def fold_data(data):
     return np.array(fold_indices)
 
 
-def create_histograms(n_clusters, k_means, data, labels, file_ids):
+def vectorize_data(n_clusters, k_means, data, labels, file_ids):
     unique_counts, classifier_counts = np.unique(file_ids, return_counts=True)
     feature_data = np.zeros((classifier_counts.shape[0], n_clusters), dtype=int)
     feature_label = np.zeros((classifier_counts.shape[0]), dtype=int)
@@ -80,30 +80,31 @@ def create_histograms(n_clusters, k_means, data, labels, file_ids):
     return feature_data, feature_label
 
 
-def create_vector_data_for_predictions(n_cluster, train_data, train_labels, train_file_ids, test_data, test_labels, test_file_ids):
+def create_histogram_for_predictions(n_cluster, train_data, train_labels, train_file_ids, test_data, test_labels, test_file_ids):
     k_means = KMeans(n_clusters=n_cluster, random_state=0).fit(train_data)
-    train_histograms, train_labels_histogram = create_histograms(
+    train_histograms, train_labels_histogram = vectorize_data(
         n_cluster, k_means, train_data, train_labels, train_file_ids)
-    test_histograms, test_labels_histogram = create_histograms(
+    test_histograms, test_labels_histogram = vectorize_data(
         n_cluster, k_means, test_data, test_labels, test_file_ids)
     return train_histograms, train_labels_histogram, test_histograms, test_labels_histogram
 
 
 labeled_data = load_data()
-segments = [1, 2, 4, 16, 32]
-clusters_sizes = [10, 20, 30]
+segments = [1] #, 4, 32]
+clusters_sizes = [30] #[10, 20, 30]
 best_accuracy = 0
-best_segment = 0
-best_cluster = 0
+best_segment = 1
+best_cluster = 30
 
 for segment in segments:
-    print(f"Starting segment {segment}")
+    # print(f"Starting segment {segment}")
     data_segmented, segmented_labels, file_ids = combine_data_along_with_segment(
             segment, labeled_data, CLASSIFIER_LABELS)
     folded_data_indices = fold_data(data_segmented)
     for cluster in clusters_sizes:
-        print(f"Starting kmean {cluster}")
+        # print(f"Starting kmean {cluster}")
         average_accuracy = 0.0
+        best_accuracy_per_fold = 0.0
         for fold in folded_data_indices:
             train_data = data_segmented[fold[0]]
             train_labels = segmented_labels[fold[0]]
@@ -111,19 +112,41 @@ for segment in segments:
             test_data = data_segmented[fold[1]]
             test_labels = segmented_labels[fold[1]]
             test_ids = file_ids[fold[1]]
-            print("Creating histograms")
             train_vector, train_labels_vector, test_vector, test_labels_vector = create_vector_data_for_predictions(
                 cluster, train_data, train_labels, train_ids, test_data, test_labels, test_ids)
-            print("Starting rfc")
-            rfc = RandomForestClassifier(n_jobs=-1, max_depth=32)
+            rfc = RandomForestClassifier(n_jobs=-1, n_estimators=100, max_depth=32)
             rfc.fit(train_vector, train_labels_vector)
             predictions = rfc.predict(test_vector)
             current_accuracy = accuracy_score(test_labels_vector, predictions)
-            # print(f"SEGMENT: {segment}\tKMEANS: {cluster}\tACCURACY: {current_accuracy}")
+            if current_accuracy > best_accuracy_per_fold:
+                print("Updating confusion matrix")
+                best_accuracy_per_fold = current_accuracy
+                print(f"{confusion_matrix(test_labels_vector, predictions)}")
+            print(f"SEGMENT: {segment}\tKMEANS: {cluster}\tACCURACY: {current_accuracy}")
             average_accuracy += current_accuracy
         average_accuracy = average_accuracy / 3
+        print(f"SEGMENT: {segment}\tKMEANS: {cluster}\tACCURACY: {average_accuracy}")
         if average_accuracy > best_accuracy:
             best_accuracy = average_accuracy
             best_cluster = cluster
             best_segment = segment
 print(f"BEST\nSEGMENT: {best_segment}\tKMEANS: {best_cluster}\tACCURACY: {best_accuracy}")
+# https://matplotlib.org/api/_as_gen/matplotlib.pyplot.hist.html
+data_segmented, segmented_labels, file_ids = combine_data_along_with_segment(
+            best_segment, labeled_data, CLASSIFIER_LABELS)
+folded_indices = fold_data(data_segmented)
+train_data = data_segmented[folded_indices[0][0]]
+train_labels = segmented_labels[folded_indices[0][0]]
+train_ids = file_ids[folded_indices[0][0]]
+test_data = data_segmented[folded_indices[0][1]]
+test_labels = segmented_labels[folded_indices[0][1]]
+test_ids = file_ids[folded_indices[0][1]]
+train_vector, train_labels_vector, test_vector, test_labels_vector = create_histogram_for_predictions(best_cluster, train_data, train_labels, train_ids, test_data, test_labels, test_ids)
+
+fig, ax = plt.subplots(nrows=7, ncols=2, figsize=(20,10))
+plt.subplots_adjust(hspace=0.7)
+for i in range(len(CLASSIFIER_LABELS)):
+    label_histogram = np.mean(train_vector[np.where(train_labels_vector[:] == i)], axis=0)[:-1]
+    ax[i%7,i%2].set_title(CLASSIFIER_LABELS[i] + " K=" + str(best_cluster))
+    ax[i%7,i%2].hist(label_histogram, normed=True)
+plt.savefig("histograms.png")
