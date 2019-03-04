@@ -112,7 +112,7 @@ for segment in segments:
             test_data = data_segmented[fold[1]]
             test_labels = segmented_labels[fold[1]]
             test_ids = file_ids[fold[1]]
-            train_vector, train_labels_vector, test_vector, test_labels_vector = create_vector_data_for_predictions(
+            train_vector, train_labels_vector, test_vector, test_labels_vector = create_histogram_for_predictions(
                 cluster, train_data, train_labels, train_ids, test_data, test_labels, test_ids)
             rfc = RandomForestClassifier(n_jobs=-1, n_estimators=100, max_depth=32)
             rfc.fit(train_vector, train_labels_vector)
