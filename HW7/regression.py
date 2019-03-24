@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import string
 from nltk.probability import FreqDist
+from sklearn.feature_extraction.text import CountVectorizer
 
 df = pd.read_csv("yelp_2k.csv", usecols=[3, 5])
 # print(f"{df}")
@@ -41,10 +42,10 @@ for stop_word in stop_words_map:
 cleaned_word_list = [word for word in total_words_list if word not in stop_words]
 print(f"{len(cleaned_word_list)}")
 claned_freq_dist = FreqDist(cleaned_word_list)
-cleaned_word_counts = [word[1] for word in freq_dist.most_common()]
-plt.figure(2)
-plt.plot(cleaned_word_counts)
-plt.title("Word Frequency - Post Processing")
-plt.xlabel("Word Rank")
-plt.ylabel("Word Count")
-plt.show()
+cleaned_word_counts = [word[1] for word in claned_freq_dist.most_common()]
+# plt.figure(2)
+# plt.plot(cleaned_word_counts)
+# plt.title("Word Frequency - Post Processing")
+# plt.xlabel("Word Rank")
+# plt.ylabel("Word Count")
+# plt.show()
