@@ -75,4 +75,15 @@ train_text, test_text, train_star, test_star = train_test_split(transformed_list
                                                                 test_size=0.1, random_state=0)
 lr = LogisticRegression()
 lr.fit(train_text, train_star)
+train_predictions = lr.predict(train_text)
+correct_train_predictions = 0
+for prediction, actual in zip(train_predictions, train_star):
+    if prediction == actual:
+        correct_train_predictions += 1
+print(f"{correct_train_predictions} / 1800 = {correct_train_predictions / 1800}")
 test_predictions = lr.predict(test_text)
+correct_test_predictions = 0
+for prediction, actual in zip(test_predictions, test_star):
+    if prediction == actual:
+        correct_test_predictions += 1
+print(f"{correct_test_predictions} / 200 = {correct_test_predictions / 200}")
