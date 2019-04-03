@@ -11,8 +11,19 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity as cosdis
 
+
+def report_predictions(predictions, actuals, isTest):
+    correct = 0
+    for prediction, actual in zip(predictions, actuals):
+        if prediction == actual:
+            correct += 1
+    if isTest:
+        print(f"Test Accuracy {correct/len(predictions)}")
+    else:
+        print(f"Train Accuracy {correct/len(predictions)}")
+
 df = pd.read_csv("yelp_2k.csv", usecols=[3, 5])
-# print(f"{df}")
+
 df["text_lower"] = df["text"].str.lower()
 df["text_lower"] = df["text_lower"].str.replace(r'[^\w\s]+', '')
 df["text_lower"] = df["text_lower"].str.replace('\r\n', '')
@@ -34,43 +45,48 @@ freq_dist = FreqDist(total_words_list)
 print(f"FREQ DIST LENGTH: {len(freq_dist)}")
 
 word_counts = [word[1] for word in freq_dist.most_common()]
-# plt.figure(1)
-# plt.plot(word_counts)
-# plt.title("Word Frequency - Pre Processing")
-# plt.xlabel("Word Rank")
-# plt.ylabel("Word Count")
-# plt.show()
+plt.figure(1)
+plt.plot(word_counts)
+plt.title("Word Frequency - Pre Processing")
+plt.xlabel("Word Rank")
+plt.ylabel("Word Count")
+plt.savefig("WordFrequency-Pre.png")
+plt.clf()
 
-# After analysis of the image
-# decided to remove 25 which is roughly when words
-# Remove words that only occur once
 stop_words_map = freq_dist.most_common(25)
 stop_words_list = freq_dist.hapaxes()
 for stop_word in stop_words_map:
     stop_words_list.append(stop_word[0])
+cleaned_words_list = []
+for word in total_words_list:
+    if word not in stop_words_list:
+        cleaned_words_list.append(word)
+cleaned_word_freqdist = FreqDist(cleaned_words_list)
+
+cleaned_word_counts = [word[1] for word in cleaned_word_freqdist.most_common()]
+plt.plot(cleaned_word_counts)
+plt.title("Word Frequency - Post Processing")
+plt.xlabel("Word Rank")
+plt.ylabel("Word Count")
+plt.savefig("WordFrequency-Post.png")
+plt.clf()
 
 cv = CountVectorizer(stop_words=stop_words_list)
 transformed_list = cv.fit_transform(df["text_lower"]).toarray()
-# target = cv.transform(['Horrible customer service']).toarray()
+target = cv.transform(['Horrible customer service']).toarray()
 
-# nn = NearestNeighbors(n_neighbors=20, metric='cosine')
-# nn.fit(transformed_list)
-# values, index = nn.kneighbors(target)
-# values = values.flatten()
-# index = index.flatten()
-# count = 0
-# print("--------TOP SCORES-------")
-# for i in index:
-#     review = df["text"][i][:200] if len(df["text"][i]) > 200 else df["text"][i]
-#     print(f'Score: {values[count]} Review: {review}')
-#     count += 1
+nn = NearestNeighbors(n_neighbors=20, metric='cosine')
+nn.fit(transformed_list)
+values, index = nn.kneighbors(target)
+values = values.flatten()
+index = index.flatten()
+count = 0
+print("--------TOP SCORES-------")
+for i in index:
+    review = df["text"][i][:200] if len(df["text"][i]) > 200 else df["text"][i]
+    print(f'Score: {values[count]} Review: {review}')
+    count += 1
 
-# plt.figure(2)
-# plt.plot(cleaned_word_counts)
-# plt.title("Word Frequency - Post Processing")
-# plt.xlabel("Word Rank")
-# plt.ylabel("Word Count")
-# plt.show()
 
 star_array = df["stars"].values
 train_text, test_text, train_star, test_star = train_test_split(transformed_list, star_array,
@@ -78,43 +94,28 @@ train_text, test_text, train_star, test_star = train_test_split(transformed_list
 lr = LogisticRegression()
 lr.fit(train_text, train_star)
 train_predictions = lr.predict(train_text)
-correct_train_predictions = 0
-for prediction, actual in zip(train_predictions, train_star):
-    if prediction == actual:
-        correct_train_predictions += 1
-print(f"{correct_train_predictions} / 1800 = {correct_train_predictions / 1800}")
+report_predictions(train_predictions, train_star, False)
 test_predictions = lr.predict(test_text)
-correct_test_predictions = 0
-for prediction, actual in zip(test_predictions, test_star):
-    if prediction == actual:
-        correct_test_predictions += 1
-print(f"{correct_test_predictions} / 200 = {correct_test_predictions / 200}")
+report_predictions(test_predictions, test_star, True)
 
 train_probability = lr.predict_proba(train_text)
-# positive_review = [probability[0] for probability in train_prob[train_predictions == 1]]
-# negative_review = [probability[0] for probability in train_prob[train_predictions == 5]]
-# plt.hist(positive_review, bins=100)
-# plt.hist(negative_review, bins=100)
-# plt.savefig('hist_prob.png')
-# plt.clf()
+positive_review = [probability[0] for probability in train_prob[train_predictions == 1]]
+negative_review = [probability[0] for probability in train_prob[train_predictions == 5]]
+plt.hist(positive_review, bins=100)
+plt.hist(negative_review, bins=100)
+plt.savefig("original_probability.png")
+plt.clf()
 
 test_probability = lr.predict_proba(test_text)
 thresholds = [0.4, 0.55, 0.6, 0.65]
 for threshold in thresholds:
     print(f"Starting threshold {threshold}")
-    predictions = [1 if probability[0] > threshold else 5 for probability in train_probability]
-    correct = 0
-    for pred, val in zip(predictions, train_star):
-        if pred == val:
-            correct += 1
-    print(f"train accuracy is {correct/len(predictions)}")
+    train_predictions = [1 if probability[0] > threshold else 5 for probability in train_probability]
+    report_predictions(train_predictions, train_star, False)
 
-    predictions = [1 if probability[0] > threshold else 5 for probability in test_probability]
-    correct = 0
-    for pred, val in zip(predictions, test_star):
-        if pred == val:
-            correct += 1
-    print(f"test accuracy is {correct/len(predictions)}")
+    test_predictions = [1 if probability[0] > threshold else 5 for probability in test_probability]
+    report_predictions(test_predictions, test_star, True)
 
 plot_roc(test_star, test_probability)
-plt.show()
+plt.savefig("roc.png")
+plt.clf()
