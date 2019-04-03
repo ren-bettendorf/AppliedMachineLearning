@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import string
 from nltk.probability import FreqDist
+from scikitplot.metrics import plot_roc
+from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import NearestNeighbors
@@ -87,3 +89,32 @@ for prediction, actual in zip(test_predictions, test_star):
     if prediction == actual:
         correct_test_predictions += 1
 print(f"{correct_test_predictions} / 200 = {correct_test_predictions / 200}")
+
+train_probability = lr.predict_proba(train_text)
+# positive_review = [probability[0] for probability in train_prob[train_predictions == 1]]
+# negative_review = [probability[0] for probability in train_prob[train_predictions == 5]]
+# plt.hist(positive_review, bins=100)
+# plt.hist(negative_review, bins=100)
+# plt.savefig('hist_prob.png')
+# plt.clf()
+
+test_probability = lr.predict_proba(test_text)
+thresholds = [0.4, 0.55, 0.6, 0.65]
+for threshold in thresholds:
+    print(f"Starting threshold {threshold}")
+    predictions = [1 if probability[0] > threshold else 5 for probability in train_probability]
+    correct = 0
+    for pred, val in zip(predictions, train_star):
+        if pred == val:
+            correct += 1
+    print(f"train accuracy is {correct/len(predictions)}")
+
+    predictions = [1 if probability[0] > threshold else 5 for probability in test_probability]
+    correct = 0
+    for pred, val in zip(predictions, test_star):
+        if pred == val:
+            correct += 1
+    print(f"test accuracy is {correct/len(predictions)}")
+
+plot_roc(test_star, test_probability)
+plt.show()
