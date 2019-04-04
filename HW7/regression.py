@@ -40,9 +40,7 @@ for review in split_words:
         # Remove empty words
         if word:
             total_words_list.append(word)
-print(f"TOTAL WORDS LENGTH: {len(total_words_list)}")
 freq_dist = FreqDist(total_words_list)
-print(f"FREQ DIST LENGTH: {len(freq_dist)}")
 
 word_counts = [word[1] for word in freq_dist.most_common()]
 plt.figure(1)
@@ -57,35 +55,38 @@ stop_words_map = freq_dist.most_common(25)
 stop_words_list = freq_dist.hapaxes()
 for stop_word in stop_words_map:
     stop_words_list.append(stop_word[0])
-cleaned_words_list = []
-for word in total_words_list:
-    if word not in stop_words_list:
-        cleaned_words_list.append(word)
-cleaned_word_freqdist = FreqDist(cleaned_words_list)
+# cleaned_words_list = []
+# for word in total_words_list:
+#     if word not in stop_words_list:
+#         cleaned_words_list.append(word)
+# cleaned_word_freqdist = FreqDist(cleaned_words_list)
 
-cleaned_word_counts = [word[1] for word in cleaned_word_freqdist.most_common()]
-plt.plot(cleaned_word_counts)
-plt.title("Word Frequency - Post Processing")
-plt.xlabel("Word Rank")
-plt.ylabel("Word Count")
-plt.savefig("WordFrequency-Post.png")
-plt.clf()
+# cleaned_word_counts = [word[1] for word in cleaned_word_freqdist.most_common()]
+# plt.plot(cleaned_word_counts)
+# plt.title("Word Frequency - Post Processing")
+# plt.xlabel("Word Rank")
+# plt.ylabel("Word Count")
+# plt.savefig("WordFrequency-Post.png")
+# plt.clf()
 
 cv = CountVectorizer(stop_words=stop_words_list)
 transformed_list = cv.fit_transform(df["text_lower"]).toarray()
-target = cv.transform(['Horrible customer service']).toarray()
+horrible_customer_service = cv.transform(['Horrible customer service']).toarray()
 
-nn = NearestNeighbors(n_neighbors=20, metric='cosine')
+nn = NearestNeighbors(n_neighbors=2000, metric='cosine')
 nn.fit(transformed_list)
-values, index = nn.kneighbors(target)
+values, index = nn.kneighbors(horrible_customer_service)
 values = values.flatten()
+plt.plot(values)
+plt.ylabel("Cos-Distance Score")
+plt.xlabel("Cos-Distance Rank")
+plt.savefig("Distance-Scores.png")
+plt.clf()
 index = index.flatten()
-count = 0
-print("--------TOP SCORES-------")
-for i in index:
-    review = df["text"][i][:200] if len(df["text"][i]) > 200 else df["text"][i]
-    print(f'Score: {values[count]} Review: {review}')
-    count += 1
+print("---------------")
+for i in range(5):
+    review = df["text"][index[i]][:200] if len(df["text"][[index[i]]]) > 200 else df["text"][[index[i]]]
+    print(f'Score: {values[i]} Review: {review}')
 
 
 star_array = df["stars"].values
@@ -99,8 +100,8 @@ test_predictions = lr.predict(test_text)
 report_predictions(test_predictions, test_star, True)
 
 train_probability = lr.predict_proba(train_text)
-positive_review = [probability[0] for probability in train_prob[train_predictions == 1]]
-negative_review = [probability[0] for probability in train_prob[train_predictions == 5]]
+positive_review = [probability[0] for probability in train_probability[train_predictions == 1]]
+negative_review = [probability[0] for probability in train_probability[train_predictions == 5]]
 plt.hist(positive_review, bins=100)
 plt.hist(negative_review, bins=100)
 plt.savefig("original_probability.png")
